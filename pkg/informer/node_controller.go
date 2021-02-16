@@ -9,24 +9,23 @@ import (
 	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
-	coreinformers "k8s.io/client-go/informers/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 )
 
 type NodeController struct {
-	informerFactory informers.SharedInformerFactory
-	nodeInformer    coreinformers.NodeInformer
-	nodeLister      corelisters.NodeLister
+	nodeLister corelisters.NodeLister
+
+	informer cache.SharedIndexInformer
 }
 
 // Run starts shared informers and waits for the shared informer cache to
 // synchronize.
 func (c *NodeController) Run(stopCh <-chan struct{}) error {
 	// run starts and runs the shared informer
-	go c.nodeInformer.Informer().Run(stopCh)
+	go c.informer.Run(stopCh)
 
 	// wait for the initial synchronization of the local cache.
-	if !cache.WaitForCacheSync(stopCh, c.nodeInformer.Informer().HasSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
 		return fmt.Errorf("timed out waiting for caches to sync")
 	}
 
@@ -70,16 +69,17 @@ func (c *NodeController) onDelete(obj interface{}) {
 func NewNodeController(informerFactory informers.SharedInformerFactory) *NodeController {
 	// node informer
 	nodeInformer := informerFactory.Core().V1().Nodes()
+	// create informer
+	informer := nodeInformer.Informer()
 	// create node lister
 	nodeLister := nodeInformer.Lister()
 
 	c := &NodeController{
-		informerFactory: informerFactory,
-		nodeInformer:    nodeInformer,
-		nodeLister:      nodeLister,
+		informer:   informer,
+		nodeLister: nodeLister,
 	}
 
-	// Your custom resource event handlers.
+	klog.Info("Setting up custom resource event handlers.")
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// Called on creation
 		AddFunc: c.onAdd,

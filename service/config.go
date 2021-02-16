@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	envPrefixKey          = "XDP_DATASETX_ENV_PREFIX"
-	defaultEnvPrefixValue = "DATASETX"
+	envPrefixKey          = "X_ENV_PREFIX"
+	defaultEnvPrefixValue = "X"
 )
 
 type Config struct {

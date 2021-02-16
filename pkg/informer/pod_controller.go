@@ -45,7 +45,7 @@ func (c *PodController) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *PodController) Worker() {
+func (c *PodController) RunWorker() {
 	workFunc := func() bool {
 		// Wait until there is a new item in the working queue
 		key, shutdown := c.workqueue.Get()
@@ -147,10 +147,10 @@ func (c *PodController) onDelete(obj interface{}) {
 func NewPodController(informerFactory informers.SharedInformerFactory) *PodController {
 	// pod informer
 	podInformer := informerFactory.Core().V1().Pods()
+	// create informer
+	informer := podInformer.Informer()
 	// create pod lister
 	podLister := podInformer.Lister()
-	// create pod informer
-	informer := podInformer.Informer()
 
 	c := &PodController{
 		informer:  informer,

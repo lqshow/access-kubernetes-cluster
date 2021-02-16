@@ -1,4 +1,4 @@
-package informer
+package controller
 
 import (
 	"time"
@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/klog/v2"
+
+	"github.com/lqshow/access-kubernetes-cluster/pkg/informer"
 )
 
 type Controller struct {
@@ -30,7 +32,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	//go c.informerFactory.Start(stopCh)
 
 	// defined for which resource to be informed, we will be informed for nodes
-	nodeController := NewNodeController(c.informerFactory)
+	nodeController := informer.NewNodeController(c.informerFactory)
 	if err := nodeController.Run(stopCh); err != nil {
 		return err
 	}
@@ -39,8 +41,13 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	//	return err
 	//}
 
+	deployController := informer.NewDeploymentController(c.informerFactory)
+	if err := deployController.Run(stopCh); err != nil {
+		return err
+	}
+
 	// defined for which resource to be informed, we will be informed for pods
-	podController := NewPodController(c.informerFactory)
+	podController := informer.NewPodController(c.informerFactory)
 	if err := podController.Run(stopCh); err != nil {
 		return err
 	}
@@ -49,8 +56,11 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	//	return err
 	//}
 
+	klog.Info("Starting workers")
+	// Launch three workers to process user-defined resources
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(podController.Worker, time.Second, stopCh)
+		go wait.Until(deployController.RunWorker, time.Second, stopCh)
+		go wait.Until(podController.RunWorker, time.Second, stopCh)
 	}
 
 	klog.Info("Started workers")

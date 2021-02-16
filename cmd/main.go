@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,8 +18,33 @@ import (
 	"github.com/lqshow/access-kubernetes-cluster/version"
 
 	clientsetexample "github.com/lqshow/access-kubernetes-cluster/pkg/clientset"
-	informercontroller "github.com/lqshow/access-kubernetes-cluster/pkg/informer"
+	pkgcontroller "github.com/lqshow/access-kubernetes-cluster/pkg/controller"
 )
+
+var (
+	onlyOneSignalHandler = make(chan struct{})
+)
+
+func setupSignalHandler() (stopCh <-chan struct{}) {
+	// panics when called twice
+	close(onlyOneSignalHandler)
+
+	// Create a channel to stops the shared informer gracefully
+	stop := make(chan struct{})
+
+	// Using Signals to Handle Unix Commands
+	sigs := make(chan os.Signal, 2)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs
+		close(stop)
+		<-sigs
+		os.Exit(1)
+	}()
+
+	return stop
+}
 
 func main() {
 	showVersion := pflag.BoolP("version", "v", false, "Show version")
@@ -29,6 +55,9 @@ func main() {
 		fmt.Println(string(v))
 		os.Exit(0)
 	}
+
+	// Set up signals so we handle the first shutdown signal gracefully
+	stopCh := setupSignalHandler()
 
 	// Load Config
 	config := service.LoadConfigFromEnv()
@@ -60,28 +89,9 @@ func main() {
 
 	// Create the shared informer factory and use the client to connect to Kubernetes
 	factory := informers.NewSharedInformerFactory(kubeClientSet, 0)
-	controller := informercontroller.NewController(factory)
+	controller := pkgcontroller.NewController(factory)
 
-	stopCh := setupSignalHandler()
 	if err := controller.Run(config.WorkerThreadiness, stopCh); err != nil {
 		zap.S().Panicf("Failed to controller run: %v", err)
 	}
-}
-
-func setupSignalHandler() (stopCh <-chan struct{}) {
-	// Create a channel to stops the shared informer gracefully
-	stop := make(chan struct{})
-
-	// Using Signals to Handle Unix Commands
-	sigs := make(chan os.Signal, 2)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-sigs
-		close(stop)
-		<-sigs
-		os.Exit(1)
-	}()
-
-	return stop
 }
