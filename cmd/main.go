@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"k8s.io/client-go/informers"
-	"os"
 
 	"github.com/lqshow/access-kubernetes-cluster/pkg/kube"
 	"github.com/lqshow/access-kubernetes-cluster/service"
@@ -26,8 +29,6 @@ func main() {
 		fmt.Println(string(v))
 		os.Exit(0)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Load Config
 	config := service.LoadConfigFromEnv()
@@ -51,23 +52,36 @@ func main() {
 	}
 	zap.L().Info("Kubernetes connected")
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientsetExample := clientsetexample.NewPodExample(kubeClientSet, config, ctx)
 	if err := clientsetExample.List(); err != nil {
-
 	}
 
 	// Create the shared informer factory and use the client to connect to Kubernetes
 	factory := informers.NewSharedInformerFactory(kubeClientSet, 0)
 	controller := informercontroller.NewController(factory)
 
-	// Create a channel to stops the shared informer gracefully
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-
-	if err := controller.Run(stopCh); err != nil {
+	stopCh := setupSignalHandler()
+	if err := controller.Run(config.WorkerThreadiness, stopCh); err != nil {
 		zap.S().Panicf("Failed to controller run: %v", err)
 	}
+}
 
-	select {}
-	zap.S().Debugf("Shutting down Controller.")
+func setupSignalHandler() (stopCh <-chan struct{}) {
+	// Create a channel to stops the shared informer gracefully
+	stop := make(chan struct{})
+
+	// Using Signals to Handle Unix Commands
+	sigs := make(chan os.Signal, 2)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs
+		close(stop)
+		<-sigs
+		os.Exit(1)
+	}()
+
+	return stop
 }

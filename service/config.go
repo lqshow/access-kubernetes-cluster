@@ -23,6 +23,8 @@ type Config struct {
 
 	KubeConfig    string `default:"" envconfig:"KUBE_CONFIG"`
 	KubeNamespace string `default:"" envconfig:"KUBE_NAMESPACE"`
+
+	WorkerThreadiness int `default:"3" split_words:"true"`
 }
 
 func DefaultConfig() *Config {

@@ -54,6 +54,12 @@ func (c *NodeController) onAdd(obj interface{}) {
 }
 
 func (c *NodeController) onUpdate(old, new interface{}) {
+	oldNode := old.(*corev1.Node)
+	newNode := new.(*corev1.Node)
+	if oldNode.ResourceVersion == newNode.ResourceVersion {
+		return
+	}
+
 	klog.Info("NODE UPDATED: not implemented")
 }
 
