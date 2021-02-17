@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/client-go/informers"
 
-	"github.com/lqshow/access-kubernetes-cluster/pkg/kube"
+	"github.com/lqshow/access-kubernetes-cluster/pkg/kubernetes/client"
 	"github.com/lqshow/access-kubernetes-cluster/pkg/signals"
 	"github.com/lqshow/access-kubernetes-cluster/service"
 	"github.com/lqshow/access-kubernetes-cluster/version"
@@ -48,7 +48,7 @@ func main() {
 	zap.RedirectStdLog(logger)
 
 	zap.S().Info("Connecting to Kubernetes")
-	kubeClientSet, err := kube.GetKubeClientset(config)
+	kubeClientSet, err := client.NewKubeClient("", config.KubeConfig)
 	if err != nil {
 		zap.S().Fatalf("Failed to get kube client: %v", err)
 	}

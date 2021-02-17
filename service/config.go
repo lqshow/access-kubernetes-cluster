@@ -22,7 +22,7 @@ type Config struct {
 	LogStreamPayload bool `default:"false" split_words:"true"`
 
 	KubeConfig    string `default:"" envconfig:"KUBE_CONFIG"`
-	KubeNamespace string `default:"" envconfig:"KUBE_NAMESPACE"`
+	KubeNamespace string `default:"default" envconfig:"KUBE_NAMESPACE"`
 
 	WorkerThreadiness int `default:"3" split_words:"true"`
 }
