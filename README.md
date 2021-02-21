@@ -4,7 +4,7 @@ How to access a kubernetes cluster
 
 ## Build Client
 
-首先，作为和 Kubernetes 交互的应用程序，必须先构建一个 clientset。
+首先，作为和 Kubernetes 交互的应用程序，必须先构建一个 clientset。 clientset 是多个 client 的集合，每个 client 可能包含不同版本的方法调用。
 
 clientset 的使用分两种情况：集群内和集群外。
 
@@ -61,6 +61,33 @@ if err != nil {
 }
 ```
 
+**定制封装 clientset**
+
+```go
+import (
+    "k8s.io/client-go/rest"
+    "github.com/lqshow/access-kubernetes-cluster/service"
+)
+
+const (
+    // UserAgent is an optional field that specifies the caller of this request.
+    UserAgent = "informer-example"
+)
+
+// Load Config
+config := service.LoadConfigFromEnv()
+
+configModifier := func(c *rest.Config) {
+    c.QPS = 5
+    c.Burst = 10
+    c.UserAgent = UserAgent
+}
+kubeClientSet, err := client.NewKubeClient("", config.KubeConfig, configModifier)
+if err != nil {
+    zap.S().Fatalf("Failed to get kube client: %v", err)
+}
+```
+
 ## Clientset
 
 Clientset 是 k8s 中出镜率最高的 client，用法比较简单。
@@ -82,7 +109,15 @@ for _, pod := range pods.Items {
 
 ## Informer
 
+**enqueue key**
+
+format: namespace/name
 
 ## References
 - [Authenticating inside the cluster](https://github.com/kubernetes/client-go/blob/master/examples/in-cluster-client-configuration/README.md)
 - [Authenticating outside the cluster](https://github.com/kubernetes/client-go/blob/master/examples/out-of-cluster-client-configuration/README.md)
+- [client-go Examples](https://github.com/kubernetes/client-go/blob/master/examples/README.md)
+- [informer example code](https://github.com/feiskyer/kubernetes-handbook/blob/master/examples/client/informer/informer.go)
+- [使用 client-go 控制原生及拓展的 Kubernetes API](https://studygolang.com/articles/9270)
+- [kubernetes 中 informer 的使用](https://www.jianshu.com/p/1e2e686fe363)
+- [Extend Kubernetes via a Shared Informer](https://gianarb.it/blog/kubernetes-shared-informer)

@@ -2,10 +2,12 @@ package clientset
 
 import (
 	"context"
+
 	"k8s.io/klog/v2"
 
 	"github.com/lqshow/access-kubernetes-cluster/service"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kube "k8s.io/client-go/kubernetes"
 )
@@ -25,16 +27,19 @@ func NewPodExample(clientset *kube.Clientset, config *service.Config, ctx contex
 }
 
 // specify namespace to get pods in particular namespace
-func (c *PodExample) List() error {
-	pods, err := c.clientset.CoreV1().Pods(c.config.KubeNamespace).List(c.ctx, metav1.ListOptions{})
+func (c *PodExample) List() ([]corev1.Pod, error) {
+	podList, err := c.clientset.CoreV1().Pods(c.config.KubeNamespace).List(c.ctx, metav1.ListOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	klog.Infof("There are %d pods in the cluster.", len(pods.Items))
+	klog.Infof("There are %d pods in the cluster.", len(podList.Items))
 
-	for _, pod := range pods.Items {
+	var pods []corev1.Pod
+	for _, pod := range podList.Items {
 		klog.Infof("Got pod name: %s/%v", pod.Namespace, pod.Name)
+
+		pods = append(pods, pod)
 	}
 
-	return nil
+	return pods, nil
 }

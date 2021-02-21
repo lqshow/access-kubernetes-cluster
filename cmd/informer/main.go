@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,14 +8,19 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/rest"
 
 	"github.com/lqshow/access-kubernetes-cluster/pkg/kubernetes/client"
 	"github.com/lqshow/access-kubernetes-cluster/pkg/signals"
 	"github.com/lqshow/access-kubernetes-cluster/service"
 	"github.com/lqshow/access-kubernetes-cluster/version"
 
-	clientsetexample "github.com/lqshow/access-kubernetes-cluster/pkg/clientset"
 	pkgcontroller "github.com/lqshow/access-kubernetes-cluster/pkg/controller"
+)
+
+const (
+	// UserAgent is an optional field that specifies the caller of this request.
+	UserAgent = "informer-example"
 )
 
 func main() {
@@ -48,17 +52,16 @@ func main() {
 	zap.RedirectStdLog(logger)
 
 	zap.S().Info("Connecting to Kubernetes")
-	kubeClientSet, err := client.NewKubeClient("", config.KubeConfig)
+	configModifier := func(c *rest.Config) {
+		c.QPS = 5
+		c.Burst = 10
+		c.UserAgent = UserAgent
+	}
+	kubeClientSet, err := client.NewKubeClient("", config.KubeConfig, configModifier)
 	if err != nil {
 		zap.S().Fatalf("Failed to get kube client: %v", err)
 	}
 	zap.L().Info("Kubernetes connected")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clientsetExample := clientsetexample.NewPodExample(kubeClientSet, config, ctx)
-	if err := clientsetExample.List(); err != nil {
-	}
 
 	// Create the shared informer factory and use the client to connect to Kubernetes
 	factory := informers.NewSharedInformerFactory(kubeClientSet, 0)
